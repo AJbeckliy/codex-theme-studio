@@ -21,8 +21,8 @@ A reusable Windows workflow for turning a visual direction into a packaged Codex
       <img src="docs/showcase/ayaka-fresh-breeze.png" alt="Ayaka Fresh Breeze Codex theme" width="100%">
     </td>
     <td width="50%" align="center">
-      <strong>Wukong Destiny</strong><br><br>
-      <img src="docs/showcase/wukong-destiny.png" alt="Wukong Destiny Codex theme" width="100%">
+      <strong>Pokémon Adventure</strong><br><br>
+      <img src="docs/showcase/pokemon-adventure.png" alt="Pokémon Adventure Codex theme showcase" width="100%">
     </td>
   </tr>
 </table>
