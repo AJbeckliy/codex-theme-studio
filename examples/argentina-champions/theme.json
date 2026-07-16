@@ -1,0 +1,63 @@
+{
+  "schemaVersion": 1,
+  "id": "argentina-champions",
+  "displayName": "Argentina Champions",
+  "version": "1.0.0",
+  "rights": {
+    "mode": "original",
+    "reviewed": true,
+    "notes": "Original sky-blue, white, and gold football celebration art. No FIFA marks, AFA crest, official trophy, sponsor, jersey replica, or real-player likeness."
+  },
+  "copy": {
+    "brandTitle": "ARGENTINA CHAMPIONS",
+    "brandSubtitle": "蓝白荣耀 · 灵感开场",
+    "heroSubtitle": "和 Codex 一起，把每一次进攻变成作品",
+    "projectLabel": "选择你的主场项目",
+    "actionsLabel": "冠军工作流"
+  },
+  "palette": {
+    "ink": "#123B5D",
+    "muted": "#557895",
+    "primary": "#74ACDF",
+    "secondary": "#FFFFFF",
+    "accent": "#D4AF37",
+    "danger": "#D75B64",
+    "background": "#F2FAFF",
+    "surface": "#FFFFFF",
+    "line": "#A7CDEB"
+  },
+  "layout": { "heroPosition": "right 58%" },
+  "assets": {
+    "hero": "hero.png",
+    "cornerLeft": "corner-left.png",
+    "cornerRight": "corner-right.png",
+    "icon": "icon.png",
+    "shortcutIcon": "icon.ico"
+  },
+  "homeActions": [
+    {
+      "title": "制定冠军计划",
+      "detail": "拆解目标与关键赛点",
+      "prompt": "请像冠军教练一样，帮我把当前目标拆成清晰可执行的阶段计划。",
+      "iconSource": "新建任务"
+    },
+    {
+      "title": "分析当前代码",
+      "detail": "阅读阵型，找到突破口",
+      "prompt": "请分析当前项目的代码结构、主要风险和最值得优先推进的突破口。",
+      "iconSource": "聊天"
+    },
+    {
+      "title": "修复关键问题",
+      "detail": "定位问题并完成验证",
+      "prompt": "请定位当前项目最关键的问题，提出最小修复方案并完成验证。",
+      "iconSource": "拉取请求"
+    },
+    {
+      "title": "制作胜利时刻",
+      "detail": "把想法变成视觉成果",
+      "prompt": "请把我的想法转化为一个具有蓝白冠军氛围的原创视觉方案。",
+      "iconSource": "插件"
+    }
+  ]
+}

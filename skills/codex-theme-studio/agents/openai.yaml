@@ -1,0 +1,4 @@
+interface:
+  display_name: "Codex Theme Studio"
+  short_description: "Generate, install, verify, and restore Codex themes"
+  default_prompt: "Use $codex-theme-studio to create and safely install an original Codex desktop theme."
