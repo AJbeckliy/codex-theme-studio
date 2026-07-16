@@ -2,6 +2,33 @@
 
 A reusable Windows workflow for turning a visual direction into a packaged Codex desktop theme: manifest, GPT Image assets, live CDP injection, theme-specific shortcut icon, verification, and recovery.
 
+## Theme showcase
+
+<table>
+  <tr>
+    <td width="50%" align="center">
+      <strong>Argentina Champions</strong><br><br>
+      <img src="docs/showcase/argentina-champions.png" alt="Argentina Champions Codex theme" width="100%">
+    </td>
+    <td width="50%" align="center">
+      <strong>Arina Pearl Luxury</strong><br><br>
+      <img src="docs/showcase/arina-pearl-luxury.png" alt="Arina Pearl Luxury Codex theme" width="100%">
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" align="center">
+      <strong>Ayaka Fresh Breeze</strong><br><br>
+      <img src="docs/showcase/ayaka-fresh-breeze.png" alt="Ayaka Fresh Breeze Codex theme" width="100%">
+    </td>
+    <td width="50%" align="center">
+      <strong>Wukong Destiny</strong><br><br>
+      <img src="docs/showcase/wukong-destiny.png" alt="Wukong Destiny Codex theme" width="100%">
+    </td>
+  </tr>
+</table>
+
+These screenshots show themes created with Theme Studio. The public repository currently includes the original `Argentina Champions` package; the other themes are visual showcases only.
+
 > This project modifies the local presentation of the Windows Codex desktop app at runtime. Codex updates can change internal DOM selectors; always keep the restore shortcut available.
 
 ## What is included
