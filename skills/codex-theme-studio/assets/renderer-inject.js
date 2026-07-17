@@ -6,6 +6,8 @@
   const ROOT_CLASS = "codex-theme-studio";
   const HOME_CLASS = "theme-home";
   const HOME_SHELL_CLASS = "theme-home-shell";
+  const ORIGINAL_COLOR_ATTR = "data-codex-theme-original-color";
+  const ORIGINAL_COLOR_PRIORITY_ATTR = "data-codex-theme-original-color-priority";
   window.__CODEX_DREAM_SKIN_STATE__?.cleanup?.();
   document.documentElement?.classList.remove("codex-dream-skin");
   document.getElementById("codex-dream-skin-style")?.remove();
@@ -56,6 +58,37 @@
       editor.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: prompt }));
     }
     return editor.innerText.trim() === prompt;
+  };
+
+  const applySemanticTextColors = () => {
+    const targets = new Map();
+    document.querySelectorAll('main.main-surface [class~="text-token-foreground"]:not([class*="git-decoration"])')
+      .forEach((node) => targets.set(node, "var(--theme-ink)"));
+    document.querySelectorAll([
+      'main.main-surface [class*="text-token-conversation"]',
+      'main.main-surface [class*="text-token-description-foreground"]',
+      'main.main-surface [class*="text-token-text-tertiary"]',
+      'main.main-surface [class*="loading-shimmer"]',
+    ].join(','))
+      .forEach((node) => targets.set(node, "var(--theme-muted)"));
+    for (const [node, color] of targets) {
+      if (!node.hasAttribute(ORIGINAL_COLOR_ATTR)) {
+        node.setAttribute(ORIGINAL_COLOR_ATTR, node.style.getPropertyValue("color"));
+        node.setAttribute(ORIGINAL_COLOR_PRIORITY_ATTR, node.style.getPropertyPriority("color"));
+      }
+      node.style.setProperty("color", color, "important");
+    }
+  };
+
+  const restoreSemanticTextColors = () => {
+    document.querySelectorAll(`[${ORIGINAL_COLOR_ATTR}]`).forEach((node) => {
+      const color = node.getAttribute(ORIGINAL_COLOR_ATTR) || "";
+      const priority = node.getAttribute(ORIGINAL_COLOR_PRIORITY_ATTR) || "";
+      if (color) node.style.setProperty("color", color, priority);
+      else node.style.removeProperty("color");
+      node.removeAttribute(ORIGINAL_COLOR_ATTR);
+      node.removeAttribute(ORIGINAL_COLOR_PRIORITY_ATTR);
+    });
   };
 
   const findNativeIcon = (label) => [...document.querySelectorAll("aside.app-shell-left-panel button")]
@@ -154,6 +187,7 @@
       style.textContent = cssText;
       style.dataset.themeKey = themeKey;
     }
+    applySemanticTextColors();
 
     const shellMain = document.querySelector("main.main-surface") || document.querySelector("main");
     const home = document.querySelector('[role="main"]:has([data-testid="home-icon"])');
@@ -196,6 +230,7 @@
     document.getElementById(STYLE_ID)?.remove();
     document.getElementById(CHROME_ID)?.remove();
     document.getElementById(HOME_ACTIONS_ID)?.remove();
+    restoreSemanticTextColors();
     const state = window[STATE_KEY];
     state?.observer?.disconnect();
     if (state?.timer) clearInterval(state.timer);

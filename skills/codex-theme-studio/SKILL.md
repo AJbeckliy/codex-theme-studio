@@ -82,6 +82,7 @@ Always verify:
 - The home hero and one to four action cards fit the viewport.
 - Immersive hero cards remain inside the background area and the composer starts below it.
 - The chat view retains readable contrast and usable composer controls.
+- Tool summaries, file-change rows, timestamps, tertiary labels, and loading text use the theme ink or muted color; do not validate only Markdown paragraphs.
 - A dedicated chat background fills the main surface with `cover`, does not stretch or collapse into a horizontal band, and preserves its subject and text-safe region.
 - The chat background remains visible through the content viewport, and at least one corner decoration is visibly rendered.
 - Composer background, border, text, caret, and send button follow the theme palette.

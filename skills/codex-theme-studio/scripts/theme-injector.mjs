@@ -234,11 +234,36 @@ async function verifySession(session, expectedView = "current", expectedVersion 
       return { display: style.display, opacity, intersectsViewport, box: box(node) };
     });
     const contentViewportStyle = getComputedStyle(contentViewport || document.body);
+    const canonicalColor = (value) => {
+      const probe = document.createElement('span');
+      probe.style.color = value;
+      document.body.appendChild(probe);
+      const color = getComputedStyle(probe).color;
+      probe.remove();
+      return color;
+    };
+    const themeTextColors = new Set([canonicalColor(palette?.ink), canonicalColor(palette?.muted)]);
+    const semanticTextSelector = [
+      'main.main-surface [class~="text-token-foreground"]:not([class*="git-decoration"])',
+      'main.main-surface [class*="text-token-conversation"]',
+      'main.main-surface [class*="text-token-description-foreground"]',
+      'main.main-surface [class*="text-token-text-tertiary"]',
+      'main.main-surface [class*="loading-shimmer"]',
+    ].join(',');
+    const semanticText = [...document.querySelectorAll(semanticTextSelector)].flatMap((node) => {
+      const rect = node.getBoundingClientRect();
+      const style = getComputedStyle(node);
+      if (!node.textContent?.trim() || rect.width < 2 || rect.height < 2 || rect.bottom <= 0 || rect.top >= innerHeight ||
+          style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity) < .1) return [];
+      return [{ text: node.textContent.trim().slice(0, 80), color: style.color }];
+    });
+    const invalidSemanticText = semanticText.filter((item) => !themeTextColors.has(item.color));
     result.chatVisual = {
       backgroundHasThemeImage: getComputedStyle(chatSurface || document.body).backgroundImage.includes('blob:'),
       contentViewportBackground: contentViewportStyle.background,
       contentViewportBackgroundColor: contentViewportStyle.backgroundColor,
       contentViewportBackgroundAlpha: rgbaAlpha(contentViewportStyle.backgroundColor),
+      semanticText: { sampleCount: semanticText.length, invalidCount: invalidSemanticText.length, invalid: invalidSemanticText.slice(0, 8) },
       corners: cornerVisibility,
       visibleCornerCount: cornerVisibility.filter((item) => item.display !== 'none' && item.opacity >= .12 && item.intersectsViewport).length,
     };
@@ -258,6 +283,7 @@ async function verifySession(session, expectedView = "current", expectedVersion 
       (!result.immersive || result.cards.every((card) => contains(result.hero, card))) && (result.composer?.y ?? -Infinity) + 1 >= lastCardBottom;
     result.chatPass = !result.homePresent && inViewport(result.composer) &&
       result.chatVisual.backgroundHasThemeImage && result.chatVisual.contentViewportBackgroundAlpha <= .2 &&
+      result.chatVisual.semanticText.sampleCount > 0 && result.chatVisual.semanticText.invalidCount === 0 &&
       result.chatVisual.visibleCornerCount >= 1;
     const viewPass = result.requestedView === 'current' || result.requestedView === result.detectedView;
     result.pass = commonPass && contrastPass && computedContrastPass && viewPass &&

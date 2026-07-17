@@ -92,6 +92,11 @@ html.codex-theme-studio main.main-surface :is(p, li, blockquote, h1, h2, h3, h4)
   color: var(--theme-ink) !important;
 }
 html.codex-theme-studio main.main-surface [class*="text-token-foreground-secondary"] { color: var(--theme-muted) !important; }
+html.codex-theme-studio main.main-surface [class~="text-token-foreground"]:not([class*="git-decoration"]) { color: var(--theme-ink) !important; }
+html.codex-theme-studio main.main-surface [class*="text-token-conversation"],
+html.codex-theme-studio main.main-surface [class*="text-token-description-foreground"],
+html.codex-theme-studio main.main-surface [class*="text-token-text-tertiary"],
+html.codex-theme-studio main.main-surface [class*="loading-shimmer"] { color: var(--theme-muted) !important; }
 html.codex-theme-studio main.main-surface a { color: var(--theme-accent) !important; }
 
 #codex-theme-chrome {
