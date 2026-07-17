@@ -25,7 +25,7 @@ html.codex-theme-studio body {
 
 html.codex-theme-studio .app-shell-main-content-viewport {
   color: var(--theme-ink) !important;
-  background: var(--theme-surface) !important;
+  background: transparent !important;
 }
 
 html.codex-theme-studio body::before {
@@ -92,6 +92,11 @@ html.codex-theme-studio main.main-surface :is(p, li, blockquote, h1, h2, h3, h4)
   color: var(--theme-ink) !important;
 }
 html.codex-theme-studio main.main-surface [class*="text-token-foreground-secondary"] { color: var(--theme-muted) !important; }
+html.codex-theme-studio main.main-surface [class~="text-token-foreground"]:not([class*="git-decoration"]) { color: var(--theme-ink) !important; }
+html.codex-theme-studio main.main-surface [class*="text-token-conversation"],
+html.codex-theme-studio main.main-surface [class*="text-token-description-foreground"],
+html.codex-theme-studio main.main-surface [class*="text-token-text-tertiary"],
+html.codex-theme-studio main.main-surface [class*="loading-shimmer"] { color: var(--theme-muted) !important; }
 html.codex-theme-studio main.main-surface a { color: var(--theme-accent) !important; }
 
 #codex-theme-chrome {
@@ -166,7 +171,7 @@ html.codex-theme-studio main.main-surface a { color: var(--theme-accent) !import
 html.codex-theme-studio main.main-surface:not(.theme-home-shell) {
   background:
     linear-gradient(90deg, var(--theme-surface) 0%, color-mix(in srgb, var(--theme-background) 97%, transparent) 42%, color-mix(in srgb, var(--theme-secondary) 9%, transparent) 100%),
-    var(--theme-hero) right 58px / 68% auto no-repeat !important;
+    var(--theme-chat-background, var(--theme-hero)) right 58px / 68% auto no-repeat !important;
 }
 #codex-theme-chrome:not(.theme-home-shell) .theme-brand {
   display: flex;
@@ -185,7 +190,7 @@ html.codex-theme-studio main.main-surface:not(.theme-home-shell) {
 }
 #codex-theme-chrome:not(.theme-home-shell) .theme-corner {
   display: block;
-  opacity: .15;
+  opacity: .28;
   filter: saturate(.9) drop-shadow(0 4px 7px rgba(62, 70, 46, .12));
 }
 #codex-theme-chrome:not(.theme-home-shell) .theme-corner-left {
@@ -474,7 +479,7 @@ html.codex-theme-studio [data-message-author-role] { border-radius: 18px; }
   #codex-theme-chrome.theme-home-shell .theme-corner { display: none !important; }
   #codex-theme-chrome:not(.theme-home-shell) .theme-brand,
   #codex-theme-chrome:not(.theme-home-shell) .theme-corner-left { display: none !important; }
-  #codex-theme-chrome:not(.theme-home-shell) .theme-corner-right { opacity: .09; }
+  #codex-theme-chrome:not(.theme-home-shell) .theme-corner-right { opacity: .16; }
   .theme-brand { left: 15px; }
   .theme-home > div:first-child > div:first-child { flex-basis: 396px !important; min-height: 396px !important; }
   .theme-home > div:first-child > div:first-child > div:first-child {

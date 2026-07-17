@@ -108,18 +108,21 @@ async function waitForTargets(port, timeoutMs) {
 
 async function loadPayload(themePath) {
   const loaded = await loadTheme(themePath);
-  const [css, template, hero, cornerLeft, cornerRight, icon] = await Promise.all([
+  const [baseCss, themeCss, template, hero, chatBackground, cornerLeft, cornerRight, icon] = await Promise.all([
     fs.readFile(path.join(root, "assets", "base-theme.css"), "utf8"),
+    loaded.files.stylesheet ? fs.readFile(loaded.files.stylesheet, "utf8") : "",
     fs.readFile(path.join(root, "assets", "renderer-inject.js"), "utf8"),
-    fs.readFile(loaded.files.hero), fs.readFile(loaded.files.cornerLeft),
+    fs.readFile(loaded.files.hero), fs.readFile(loaded.files.chatBackground ?? loaded.files.hero), fs.readFile(loaded.files.cornerLeft),
     fs.readFile(loaded.files.cornerRight), fs.readFile(loaded.files.icon),
   ]);
+  const css = themeCss ? `${baseCss}\n\n/* Theme overrides */\n${themeCss}` : baseCss;
   return {
     loaded,
     payload: template
       .replace("__THEME_CSS_JSON__", JSON.stringify(css))
       .replace("__THEME_JSON__", JSON.stringify(loaded.theme))
       .replace("__THEME_HERO_JSON__", JSON.stringify(toDataUrl(loaded.files.hero, hero)))
+      .replace("__THEME_CHAT_BACKGROUND_JSON__", JSON.stringify(toDataUrl(loaded.files.chatBackground ?? loaded.files.hero, chatBackground)))
       .replace("__THEME_CORNER_LEFT_JSON__", JSON.stringify(toDataUrl(loaded.files.cornerLeft, cornerLeft)))
       .replace("__THEME_CORNER_RIGHT_JSON__", JSON.stringify(toDataUrl(loaded.files.cornerRight, cornerRight)))
       .replace("__THEME_ICON_JSON__", JSON.stringify(toDataUrl(loaded.files.icon, icon))),
@@ -216,6 +219,54 @@ async function verifySession(session, expectedView = "current", expectedVersion 
       contrasts,
       computedContrasts,
     };
+    const rgbaAlpha = (value) => {
+      const channels = value?.match(/[\\d.]+/g)?.map(Number);
+      return channels?.length >= 4 ? channels[3] : 1;
+    };
+    const chatSurface = document.querySelector('main.main-surface');
+    const contentViewport = document.querySelector('.app-shell-main-content-viewport');
+    const cornerNodes = [...document.querySelectorAll('#codex-theme-chrome:not(.theme-home-shell) .theme-corner')];
+    const cornerVisibility = cornerNodes.map((node) => {
+      const rect = node.getBoundingClientRect();
+      const style = getComputedStyle(node);
+      const opacity = Number(style.opacity);
+      const intersectsViewport = rect.right > 0 && rect.bottom > 0 && rect.left < innerWidth && rect.top < innerHeight;
+      return { display: style.display, opacity, intersectsViewport, box: box(node) };
+    });
+    const contentViewportStyle = getComputedStyle(contentViewport || document.body);
+    const canonicalColor = (value) => {
+      const probe = document.createElement('span');
+      probe.style.color = value;
+      document.body.appendChild(probe);
+      const color = getComputedStyle(probe).color;
+      probe.remove();
+      return color;
+    };
+    const themeTextColors = new Set([canonicalColor(palette?.ink), canonicalColor(palette?.muted)]);
+    const semanticTextSelector = [
+      'main.main-surface [class~="text-token-foreground"]:not([class*="git-decoration"])',
+      'main.main-surface [class*="text-token-conversation"]',
+      'main.main-surface [class*="text-token-description-foreground"]',
+      'main.main-surface [class*="text-token-text-tertiary"]',
+      'main.main-surface [class*="loading-shimmer"]',
+    ].join(',');
+    const semanticText = [...document.querySelectorAll(semanticTextSelector)].flatMap((node) => {
+      const rect = node.getBoundingClientRect();
+      const style = getComputedStyle(node);
+      if (!node.textContent?.trim() || rect.width < 2 || rect.height < 2 || rect.bottom <= 0 || rect.top >= innerHeight ||
+          style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity) < .1) return [];
+      return [{ text: node.textContent.trim().slice(0, 80), color: style.color }];
+    });
+    const invalidSemanticText = semanticText.filter((item) => !themeTextColors.has(item.color));
+    result.chatVisual = {
+      backgroundHasThemeImage: getComputedStyle(chatSurface || document.body).backgroundImage.includes('blob:'),
+      contentViewportBackground: contentViewportStyle.background,
+      contentViewportBackgroundColor: contentViewportStyle.backgroundColor,
+      contentViewportBackgroundAlpha: rgbaAlpha(contentViewportStyle.backgroundColor),
+      semanticText: { sampleCount: semanticText.length, invalidCount: invalidSemanticText.length, invalid: invalidSemanticText.slice(0, 8) },
+      corners: cornerVisibility,
+      visibleCornerCount: cornerVisibility.filter((item) => item.display !== 'none' && item.opacity >= .12 && item.intersectsViewport).length,
+    };
     const inViewport = (item) => item && item.x >= 0 && item.y >= 0 &&
       item.x + item.width <= result.viewport.width + 1 && item.y + item.height <= result.viewport.height + 1;
     const commonPass = result.installed && result.stylePresent && result.chromePresent &&
@@ -230,7 +281,10 @@ async function verifySession(session, expectedView = "current", expectedVersion 
     result.homePass = result.homePresent && Boolean(result.hero) && result.suggestionsPresent &&
       result.cards.length === result.expectedActionCount && inViewport(result.hero) && result.cards.every(inViewport) &&
       (!result.immersive || result.cards.every((card) => contains(result.hero, card))) && (result.composer?.y ?? -Infinity) + 1 >= lastCardBottom;
-    result.chatPass = !result.homePresent && inViewport(result.composer);
+    result.chatPass = !result.homePresent && inViewport(result.composer) &&
+      result.chatVisual.backgroundHasThemeImage && result.chatVisual.contentViewportBackgroundAlpha <= .2 &&
+      result.chatVisual.semanticText.sampleCount > 0 && result.chatVisual.semanticText.invalidCount === 0 &&
+      result.chatVisual.visibleCornerCount >= 1;
     const viewPass = result.requestedView === 'current' || result.requestedView === result.detectedView;
     result.pass = commonPass && contrastPass && computedContrastPass && viewPass &&
       (result.detectedView === 'home' ? result.homePass : result.chatPass);

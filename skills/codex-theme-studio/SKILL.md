@@ -1,6 +1,6 @@
 ---
 name: codex-theme-studio
-description: Create, package, install, test, switch, and restore reusable visual themes for the Windows Codex desktop app. Use when a user asks to skin Codex, turn a reference image into a theme, generate theme art with GPT Image, configure compact or immersive hero banners, theme the composer colors, create theme-specific desktop shortcut icons, validate a theme package, or publish a reusable Codex theme workflow to GitHub.
+description: Create, package, install, test, switch, and restore reusable visual themes for the Windows Codex desktop app. Use when a user asks to skin Codex, turn a reference image into a theme, generate theme art with GPT Image, configure compact or immersive hero banners, generate a separate measured-ratio full-chat background, theme composer colors, create theme-specific desktop shortcut icons, validate a theme package, or publish a reusable Codex theme workflow to GitHub.
 ---
 
 # Codex Theme Studio
@@ -13,7 +13,7 @@ Build themes as data and image packages while reusing the supplied Windows launc
 2. Inspect the requested visual direction and choose a rights mode from `references/rights-modes.md`.
 3. Create a theme folder from the schema in `references/theme-package.md`.
 4. Choose a compact or immersive hero layout and composer palette using `references/theme-package.md`.
-5. Generate or prepare four raster assets: hero, left corner, right corner, and square icon.
+5. Generate the four required raster assets: hero, left corner, right corner, and square icon. Add a separate `chat-background.png` when the user wants full-window chat artwork; follow `references/image-generation.md` and never stretch the wide hero into the chat surface.
 6. Run `node scripts/validate-theme.mjs --theme <theme-folder>`.
 7. Run `powershell -ExecutionPolicy Bypass -File scripts/install-theme.ps1 -ThemePath <theme-folder>`.
 8. Launch the created desktop shortcut or run `scripts/start-theme.ps1` directly.
@@ -33,14 +33,16 @@ Keep every theme self-contained:
 ```text
 my-theme/
 ├── theme.json
+├── theme.css         # optional theme-specific visual overrides
 ├── hero.png
+├── chat-background.png # optional measured-ratio chat background
 ├── corner-left.png
 ├── corner-right.png
 ├── icon.png
 └── icon.ico          # generated during installation when absent
 ```
 
-Do not edit `assets/base-theme.css` for ordinary themes. Change it only when adding a capability that every theme package should inherit.
+Do not edit `assets/base-theme.css` for ordinary themes. Change it only when adding a capability that every theme package should inherit. Put theme-specific chat backgrounds, decoration placement, opacity, and other visual overrides in the optional `theme.css`; it loads after the shared CSS and must use the supplied `--theme-*` variables instead of external resources.
 
 ## Install and switch
 
@@ -80,6 +82,9 @@ Always verify:
 - The home hero and one to four action cards fit the viewport.
 - Immersive hero cards remain inside the background area and the composer starts below it.
 - The chat view retains readable contrast and usable composer controls.
+- Tool summaries, file-change rows, timestamps, tertiary labels, and loading text use the theme ink or muted color; do not validate only Markdown paragraphs.
+- A dedicated chat background fills the main surface with `cover`, does not stretch or collapse into a horizontal band, and preserves its subject and text-safe region.
+- The chat background remains visible through the content viewport, and at least one corner decoration is visibly rendered.
 - Composer background, border, text, caret, and send button follow the theme palette.
 - The desktop shortcut uses the theme `.ico`, not the PowerShell icon.
 - Restore removes the live injection.
