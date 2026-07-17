@@ -13,7 +13,7 @@ The public repository includes only the original `Argentina Champions` package a
 ## What is included
 
 - One installable Codex Skill: `skills/codex-theme-studio`
-- A manifest-driven theme engine; no theme-specific JavaScript is required
+- A manifest-driven theme engine with optional per-theme `theme.css`; no theme-specific JavaScript is required
 - Safe Store-app activation with a remote debugging port
 - Multi-size Windows `.ico` generation from each theme's square PNG
 - Install, start/switch, verify/screenshot, restore, and shortcut scripts
@@ -53,7 +53,7 @@ Normal installs never edit the global Codex color configuration. Use `-RestoreBa
 
 ## Create a theme
 
-Read the Skill's `references/theme-package.md`, create a self-contained theme folder, generate the four image assets, validate it, then install it. Keep third-party licensing evidence outside public repositories.
+Read the Skill's `references/theme-package.md`, create a self-contained theme folder, generate the four image assets, and add an optional `theme.css` when the chat background or decorations need theme-specific treatment. Validate it, then install it. Keep third-party licensing evidence outside public repositories.
 
 ## Requirements
 

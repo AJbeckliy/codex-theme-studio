@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { loadTheme, validateTheme } from "../skills/codex-theme-studio/scripts/theme-lib.mjs";
+import { loadTheme, validateTheme, validateThemeStylesheet } from "../skills/codex-theme-studio/scripts/theme-lib.mjs";
 
 const examples = path.resolve(process.argv[2] || "examples");
 const folders = (await fs.readdir(examples, { withFileTypes: true })).filter((entry) => entry.isDirectory());
@@ -14,4 +14,8 @@ for (const folder of folders) {
   assert.doesNotThrow(() => validateTheme(withoutIconSource, loaded.themePath));
 }
 
-console.log(`Validated ${folders.length} theme packages and optional iconSource handling.`);
+assert.doesNotThrow(() => validateThemeStylesheet("html.codex-theme-studio { opacity: .9; }"));
+assert.throws(() => validateThemeStylesheet("@import 'https://example.com/theme.css';"));
+assert.throws(() => validateThemeStylesheet("html { background: url(https://example.com/a.png); }"));
+
+console.log(`Validated ${folders.length} theme packages, optional iconSource, and theme.css safety.`);

@@ -2,6 +2,8 @@
 
 Use UTF-8 JSON. Paths are relative to the folder containing `theme.json` and cannot leave that folder.
 
+An optional UTF-8 `theme.css` in the same folder loads after the shared stylesheet.
+
 ```json
 {
   "schemaVersion": 1,
@@ -66,6 +68,7 @@ Rules:
 - `cornerLeft` and `cornerRight`: transparent PNG.
 - `icon`: square PNG at least 256×256; 1024×1024 recommended.
 - `shortcutIcon`: optional during creation. The installer builds a multi-size `.ico` from `icon` when missing.
+- `theme.css`: optional per-theme overrides for chat backgrounds, decoration placement, opacity, and similarly specific visual treatment. Keep selectors under `html.codex-theme-studio`, use the existing `--theme-*` variables, and do not use `@import`, `url()`, or other external-resource loading.
 
 ## Hero layout
 

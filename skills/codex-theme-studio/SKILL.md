@@ -33,6 +33,7 @@ Keep every theme self-contained:
 ```text
 my-theme/
 ├── theme.json
+├── theme.css         # optional theme-specific visual overrides
 ├── hero.png
 ├── corner-left.png
 ├── corner-right.png
@@ -40,7 +41,7 @@ my-theme/
 └── icon.ico          # generated during installation when absent
 ```
 
-Do not edit `assets/base-theme.css` for ordinary themes. Change it only when adding a capability that every theme package should inherit.
+Do not edit `assets/base-theme.css` for ordinary themes. Change it only when adding a capability that every theme package should inherit. Put theme-specific chat backgrounds, decoration placement, opacity, and other visual overrides in the optional `theme.css`; it loads after the shared CSS and must use the supplied `--theme-*` variables instead of external resources.
 
 ## Install and switch
 
@@ -80,6 +81,7 @@ Always verify:
 - The home hero and one to four action cards fit the viewport.
 - Immersive hero cards remain inside the background area and the composer starts below it.
 - The chat view retains readable contrast and usable composer controls.
+- The chat hero remains visible, the content viewport does not cover it, and at least one corner decoration is visibly rendered.
 - Composer background, border, text, caret, and send button follow the theme palette.
 - The desktop shortcut uses the theme `.ico`, not the PowerShell icon.
 - Restore removes the live injection.

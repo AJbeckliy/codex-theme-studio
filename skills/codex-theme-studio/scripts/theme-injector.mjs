@@ -108,12 +108,14 @@ async function waitForTargets(port, timeoutMs) {
 
 async function loadPayload(themePath) {
   const loaded = await loadTheme(themePath);
-  const [css, template, hero, cornerLeft, cornerRight, icon] = await Promise.all([
+  const [baseCss, themeCss, template, hero, cornerLeft, cornerRight, icon] = await Promise.all([
     fs.readFile(path.join(root, "assets", "base-theme.css"), "utf8"),
+    loaded.files.stylesheet ? fs.readFile(loaded.files.stylesheet, "utf8") : "",
     fs.readFile(path.join(root, "assets", "renderer-inject.js"), "utf8"),
     fs.readFile(loaded.files.hero), fs.readFile(loaded.files.cornerLeft),
     fs.readFile(loaded.files.cornerRight), fs.readFile(loaded.files.icon),
   ]);
+  const css = themeCss ? `${baseCss}\n\n/* Theme overrides */\n${themeCss}` : baseCss;
   return {
     loaded,
     payload: template
@@ -216,6 +218,29 @@ async function verifySession(session, expectedView = "current", expectedVersion 
       contrasts,
       computedContrasts,
     };
+    const rgbaAlpha = (value) => {
+      const channels = value?.match(/[\\d.]+/g)?.map(Number);
+      return channels?.length >= 4 ? channels[3] : 1;
+    };
+    const chatSurface = document.querySelector('main.main-surface');
+    const contentViewport = document.querySelector('.app-shell-main-content-viewport');
+    const cornerNodes = [...document.querySelectorAll('#codex-theme-chrome:not(.theme-home-shell) .theme-corner')];
+    const cornerVisibility = cornerNodes.map((node) => {
+      const rect = node.getBoundingClientRect();
+      const style = getComputedStyle(node);
+      const opacity = Number(style.opacity);
+      const intersectsViewport = rect.right > 0 && rect.bottom > 0 && rect.left < innerWidth && rect.top < innerHeight;
+      return { display: style.display, opacity, intersectsViewport, box: box(node) };
+    });
+    const contentViewportStyle = getComputedStyle(contentViewport || document.body);
+    result.chatVisual = {
+      backgroundHasThemeImage: getComputedStyle(chatSurface || document.body).backgroundImage.includes('blob:'),
+      contentViewportBackground: contentViewportStyle.background,
+      contentViewportBackgroundColor: contentViewportStyle.backgroundColor,
+      contentViewportBackgroundAlpha: rgbaAlpha(contentViewportStyle.backgroundColor),
+      corners: cornerVisibility,
+      visibleCornerCount: cornerVisibility.filter((item) => item.display !== 'none' && item.opacity >= .12 && item.intersectsViewport).length,
+    };
     const inViewport = (item) => item && item.x >= 0 && item.y >= 0 &&
       item.x + item.width <= result.viewport.width + 1 && item.y + item.height <= result.viewport.height + 1;
     const commonPass = result.installed && result.stylePresent && result.chromePresent &&
@@ -230,7 +255,9 @@ async function verifySession(session, expectedView = "current", expectedVersion 
     result.homePass = result.homePresent && Boolean(result.hero) && result.suggestionsPresent &&
       result.cards.length === result.expectedActionCount && inViewport(result.hero) && result.cards.every(inViewport) &&
       (!result.immersive || result.cards.every((card) => contains(result.hero, card))) && (result.composer?.y ?? -Infinity) + 1 >= lastCardBottom;
-    result.chatPass = !result.homePresent && inViewport(result.composer);
+    result.chatPass = !result.homePresent && inViewport(result.composer) &&
+      result.chatVisual.backgroundHasThemeImage && result.chatVisual.contentViewportBackgroundAlpha <= .2 &&
+      result.chatVisual.visibleCornerCount >= 1;
     const viewPass = result.requestedView === 'current' || result.requestedView === result.detectedView;
     result.pass = commonPass && contrastPass && computedContrastPass && viewPass &&
       (result.detectedView === 'home' ? result.homePass : result.chatPass);
