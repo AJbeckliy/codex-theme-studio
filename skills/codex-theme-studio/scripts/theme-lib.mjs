@@ -71,6 +71,7 @@ export function validateTheme(theme, themePath) {
   assert(theme.assets && typeof theme.assets === "object", "assets is required.");
   const files = {};
   for (const key of REQUIRED_ASSETS) files[key] = resolveAsset(themePath, theme.assets[key], `assets.${key}`);
+  if (theme.assets.chatBackground) files.chatBackground = resolveAsset(themePath, theme.assets.chatBackground, "assets.chatBackground");
   if (theme.assets.shortcutIcon) files.shortcutIcon = resolveAsset(themePath, theme.assets.shortcutIcon, "assets.shortcutIcon");
 
   assert(Array.isArray(theme.homeActions) && theme.homeActions.length >= 1 && theme.homeActions.length <= 4,

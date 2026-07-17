@@ -166,7 +166,7 @@ html.codex-theme-studio main.main-surface a { color: var(--theme-accent) !import
 html.codex-theme-studio main.main-surface:not(.theme-home-shell) {
   background:
     linear-gradient(90deg, var(--theme-surface) 0%, color-mix(in srgb, var(--theme-background) 97%, transparent) 42%, color-mix(in srgb, var(--theme-secondary) 9%, transparent) 100%),
-    var(--theme-hero) right 58px / 68% auto no-repeat !important;
+    var(--theme-chat-background, var(--theme-hero)) right 58px / 68% auto no-repeat !important;
 }
 #codex-theme-chrome:not(.theme-home-shell) .theme-brand {
   display: flex;

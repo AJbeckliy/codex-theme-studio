@@ -40,6 +40,7 @@ An optional UTF-8 `theme.css` in the same folder loads after the shared styleshe
   },
   "assets": {
     "hero": "hero.png",
+    "chatBackground": "chat-background.png",
     "cornerLeft": "corner-left.png",
     "cornerRight": "corner-right.png",
     "icon": "icon.png",
@@ -65,10 +66,24 @@ Rules:
 - Palette entries: six-digit hex colors.
 - `homeActions`: one to four items. `iconSource` should match a visible Codex sidebar label; absence only removes the small SVG, not the action.
 - `hero`: wide art with focal content on the right and negative space on the left.
+- `chatBackground`: optional chat artwork matched to the target chat surface; when absent, the chat view falls back to `hero`. Prefer a measured ratio, or about 1.07:1 when no target capture exists.
 - `cornerLeft` and `cornerRight`: transparent PNG.
 - `icon`: square PNG at least 256×256; 1024×1024 recommended.
 - `shortcutIcon`: optional during creation. The installer builds a multi-size `.ico` from `icon` when missing.
 - `theme.css`: optional per-theme overrides for chat backgrounds, decoration placement, opacity, and similarly specific visual treatment. Keep selectors under `html.codex-theme-studio`, use the existing `--theme-*` variables, and do not use `@import`, `url()`, or other external-resource loading.
+
+Use the supplied chat variable instead of embedding a path:
+
+```css
+html.codex-theme-studio main.main-surface:not(.theme-home-shell) {
+  background:
+    linear-gradient(90deg, var(--theme-surface), transparent 62%),
+    var(--theme-chat-background) center / cover no-repeat,
+    var(--theme-background) !important;
+}
+```
+
+Keep readability gradients in `theme.css`, not in the raster. `cover` may crop the outer edge slightly, so keep the generated subject inside its crop-safe margin.
 
 ## Hero layout
 

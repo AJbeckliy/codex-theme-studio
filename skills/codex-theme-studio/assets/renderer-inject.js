@@ -1,4 +1,4 @@
-((cssText, theme, heroDataUrl, cornerLeftDataUrl, cornerRightDataUrl, iconDataUrl) => {
+((cssText, theme, heroDataUrl, chatBackgroundDataUrl, cornerLeftDataUrl, cornerRightDataUrl, iconDataUrl) => {
   const STATE_KEY = "__CODEX_THEME_STUDIO_STATE__";
   const STYLE_ID = "codex-theme-studio-style";
   const CHROME_ID = "codex-theme-chrome";
@@ -25,12 +25,13 @@
 
   const urls = {
     hero: objectUrl(heroDataUrl),
+    chatBackground: objectUrl(chatBackgroundDataUrl),
     cornerLeft: objectUrl(cornerLeftDataUrl),
     cornerRight: objectUrl(cornerRightDataUrl),
     icon: objectUrl(iconDataUrl),
   };
   const variableNames = [
-    "--theme-hero", "--theme-corner-left", "--theme-corner-right", "--theme-icon",
+    "--theme-hero", "--theme-chat-background", "--theme-corner-left", "--theme-corner-right", "--theme-icon",
     "--theme-ink", "--theme-muted", "--theme-primary", "--theme-secondary",
     "--theme-accent", "--theme-danger", "--theme-background", "--theme-surface",
     "--theme-line", "--theme-hero-subtitle", "--theme-project-label", "--theme-hero-position",
@@ -124,6 +125,7 @@
     if (!root) return;
     root.classList.add(ROOT_CLASS);
     root.style.setProperty("--theme-hero", `url("${urls.hero}")`);
+    root.style.setProperty("--theme-chat-background", `url("${urls.chatBackground}")`);
     root.style.setProperty("--theme-corner-left", `url("${urls.cornerLeft}")`);
     root.style.setProperty("--theme-corner-right", `url("${urls.cornerRight}")`);
     root.style.setProperty("--theme-icon", `url("${urls.icon}")`);
@@ -216,4 +218,4 @@
   window[STATE_KEY] = { ensure, cleanup, observer, timer, scheduler, urls, version, theme };
   ensure();
   return { installed: true, version };
-})(__THEME_CSS_JSON__, __THEME_JSON__, __THEME_HERO_JSON__, __THEME_CORNER_LEFT_JSON__, __THEME_CORNER_RIGHT_JSON__, __THEME_ICON_JSON__)
+})(__THEME_CSS_JSON__, __THEME_JSON__, __THEME_HERO_JSON__, __THEME_CHAT_BACKGROUND_JSON__, __THEME_CORNER_LEFT_JSON__, __THEME_CORNER_RIGHT_JSON__, __THEME_ICON_JSON__)

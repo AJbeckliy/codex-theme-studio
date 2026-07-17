@@ -108,11 +108,11 @@ async function waitForTargets(port, timeoutMs) {
 
 async function loadPayload(themePath) {
   const loaded = await loadTheme(themePath);
-  const [baseCss, themeCss, template, hero, cornerLeft, cornerRight, icon] = await Promise.all([
+  const [baseCss, themeCss, template, hero, chatBackground, cornerLeft, cornerRight, icon] = await Promise.all([
     fs.readFile(path.join(root, "assets", "base-theme.css"), "utf8"),
     loaded.files.stylesheet ? fs.readFile(loaded.files.stylesheet, "utf8") : "",
     fs.readFile(path.join(root, "assets", "renderer-inject.js"), "utf8"),
-    fs.readFile(loaded.files.hero), fs.readFile(loaded.files.cornerLeft),
+    fs.readFile(loaded.files.hero), fs.readFile(loaded.files.chatBackground ?? loaded.files.hero), fs.readFile(loaded.files.cornerLeft),
     fs.readFile(loaded.files.cornerRight), fs.readFile(loaded.files.icon),
   ]);
   const css = themeCss ? `${baseCss}\n\n/* Theme overrides */\n${themeCss}` : baseCss;
@@ -122,6 +122,7 @@ async function loadPayload(themePath) {
       .replace("__THEME_CSS_JSON__", JSON.stringify(css))
       .replace("__THEME_JSON__", JSON.stringify(loaded.theme))
       .replace("__THEME_HERO_JSON__", JSON.stringify(toDataUrl(loaded.files.hero, hero)))
+      .replace("__THEME_CHAT_BACKGROUND_JSON__", JSON.stringify(toDataUrl(loaded.files.chatBackground ?? loaded.files.hero, chatBackground)))
       .replace("__THEME_CORNER_LEFT_JSON__", JSON.stringify(toDataUrl(loaded.files.cornerLeft, cornerLeft)))
       .replace("__THEME_CORNER_RIGHT_JSON__", JSON.stringify(toDataUrl(loaded.files.cornerRight, cornerRight)))
       .replace("__THEME_ICON_JSON__", JSON.stringify(toDataUrl(loaded.files.icon, icon))),
