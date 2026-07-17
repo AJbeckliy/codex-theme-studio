@@ -68,23 +68,52 @@ export function validateTheme(theme, themePath) {
   assert(Array.isArray(theme.homeActions) && theme.homeActions.length >= 1 && theme.homeActions.length <= 4,
     "homeActions must contain one to four actions.");
   for (const [index, action] of theme.homeActions.entries()) {
-    for (const key of ["title", "detail", "prompt", "iconSource"]) {
+    for (const key of ["title", "detail", "prompt"]) {
       assertString(action?.[key], `homeActions[${index}].${key}`);
     }
+    if (action?.iconSource !== undefined) assertString(action.iconSource, `homeActions[${index}].iconSource`);
   }
   return files;
 }
 
+function inspectPng(bytes, label) {
+  const signature = "89504e470d0a1a0a";
+  assert(bytes.length >= 33 && bytes.subarray(0, 8).toString("hex") === signature, `${label} must be a valid PNG file.`);
+  const width = bytes.readUInt32BE(16);
+  const height = bytes.readUInt32BE(20);
+  const colorType = bytes[25];
+  let transparent = colorType === 4 || colorType === 6;
+  for (let offset = 8; offset + 12 <= bytes.length;) {
+    const length = bytes.readUInt32BE(offset);
+    const type = bytes.subarray(offset + 4, offset + 8).toString("ascii");
+    if (type === "tRNS") transparent = true;
+    offset += length + 12;
+  }
+  return { width, height, transparent };
+}
+
 export async function loadTheme(inputPath) {
-  const themePath = path.resolve(inputPath);
+  const themePath = await fs.realpath(path.resolve(inputPath)).catch(() => null);
+  assert(themePath, `Theme folder not found: ${path.resolve(inputPath)}`);
   const stat = await fs.stat(themePath).catch(() => null);
   assert(stat?.isDirectory(), `Theme folder not found: ${themePath}`);
   const manifestPath = path.join(themePath, "theme.json");
   const theme = JSON.parse(await fs.readFile(manifestPath, "utf8"));
   const files = validateTheme(theme, themePath);
   for (const [label, filePath] of Object.entries(files)) {
-    const fileStat = await fs.stat(filePath).catch(() => null);
+    const realPath = await fs.realpath(filePath).catch(() => null);
+    const prefix = `${themePath}${path.sep}`.toLowerCase();
+    assert(realPath?.toLowerCase().startsWith(prefix), `Theme ${label} asset cannot leave the theme folder.`);
+    const fileStat = await fs.stat(realPath).catch(() => null);
     assert(fileStat?.isFile(), `Theme ${label} asset not found: ${filePath}`);
+    files[label] = realPath;
+  }
+  for (const label of REQUIRED_ASSETS) {
+    const bytes = await fs.readFile(files[label]);
+    const info = inspectPng(bytes, `Theme ${label} asset`);
+    if (label === "hero") assert(info.width / info.height >= 1.8, "Theme hero asset must be a wide image with at least a 1.8:1 ratio.");
+    if (label === "icon") assert(info.width === info.height && info.width >= 256, "Theme icon asset must be square and at least 256x256.");
+    if (label === "cornerLeft" || label === "cornerRight") assert(info.transparent, `Theme ${label} asset must contain transparency.`);
   }
   return { themePath, manifestPath, theme, files };
 }

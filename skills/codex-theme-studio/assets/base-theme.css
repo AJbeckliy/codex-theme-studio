@@ -20,7 +20,12 @@ html.codex-theme-studio body {
   background:
     radial-gradient(circle at 84% 4%, color-mix(in srgb, var(--theme-secondary) 18%, transparent), transparent 28%),
     radial-gradient(circle at 12% 92%, color-mix(in srgb, var(--theme-primary) 20%, transparent), transparent 24%),
-    linear-gradient(135deg, var(--theme-surface), var(--theme-background) 52%, color-mix(in srgb, var(--theme-secondary) 8%, white)) !important;
+    linear-gradient(135deg, var(--theme-surface), var(--theme-background) 52%, color-mix(in srgb, var(--theme-secondary) 8%, var(--theme-background))) !important;
+}
+
+html.codex-theme-studio .app-shell-main-content-viewport {
+  color: var(--theme-ink) !important;
+  background: var(--theme-surface) !important;
 }
 
 html.codex-theme-studio body::before {
@@ -45,6 +50,8 @@ html.codex-theme-studio aside.app-shell-left-panel {
 }
 
 html.codex-theme-studio aside.app-shell-left-panel nav { background: transparent !important; }
+html.codex-theme-studio aside.app-shell-left-panel * { color: var(--theme-ink) !important; }
+html.codex-theme-studio aside.app-shell-left-panel [class*="text-token-foreground-secondary"] { color: var(--theme-muted) !important; }
 html.codex-theme-studio aside.app-shell-left-panel button {
   color: var(--theme-ink) !important;
   transition: transform .16s ease, background .16s ease, box-shadow .16s ease !important;
@@ -56,7 +63,7 @@ html.codex-theme-studio aside.app-shell-left-panel button:hover {
 }
 html.codex-theme-studio aside.app-shell-left-panel [class~="bg-token-list-hover-background"],
 html.codex-theme-studio aside.app-shell-left-panel [aria-current="page"] {
-  background: linear-gradient(90deg, color-mix(in srgb, var(--theme-primary) 58%, white), color-mix(in srgb, var(--theme-primary) 24%, white)) !important;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--theme-primary) 58%, var(--theme-surface)), color-mix(in srgb, var(--theme-primary) 24%, var(--theme-background))) !important;
   border: 1px solid rgba(211, 169, 25, .28) !important;
   box-shadow: 0 4px 14px rgba(146, 117, 33, .10) !important;
 }
@@ -64,7 +71,7 @@ html.codex-theme-studio aside.app-shell-left-panel [aria-current="page"] {
 html.codex-theme-studio main.main-surface {
   color: var(--theme-ink) !important;
   background:
-    radial-gradient(circle at 86% 7%, rgba(75, 158, 234, .12), transparent 28%),
+    radial-gradient(circle at 86% 7%, color-mix(in srgb, var(--theme-secondary) 12%, transparent), transparent 28%),
     linear-gradient(180deg, var(--theme-surface), var(--theme-background)) !important;
   border: 1px solid rgba(222, 199, 132, .44) !important;
   border-right: 0 !important;
@@ -79,6 +86,13 @@ html.codex-theme-studio main.main-surface > header.app-header-tint {
   border-bottom: 1px solid rgba(220, 195, 119, .34) !important;
   backdrop-filter: none !important;
 }
+
+html.codex-theme-studio main.main-surface :is(p, li, blockquote, h1, h2, h3, h4),
+html.codex-theme-studio main.main-surface :is(p, li, blockquote, h1, h2, h3, h4) * {
+  color: var(--theme-ink) !important;
+}
+html.codex-theme-studio main.main-surface [class*="text-token-foreground-secondary"] { color: var(--theme-muted) !important; }
+html.codex-theme-studio main.main-surface a { color: var(--theme-accent) !important; }
 
 #codex-theme-chrome {
   position: fixed;
@@ -97,7 +111,7 @@ html.codex-theme-studio main.main-surface > header.app-header-tint {
   align-items: center;
   gap: 9px;
   color: var(--theme-ink);
-  text-shadow: 0 1px rgba(255,255,255,.9);
+  text-shadow: 0 1px 2px var(--theme-background);
 }
 #codex-theme-chrome.theme-home-shell .theme-brand { display: flex; }
 .theme-brand b { display: block; font-size: 13px; letter-spacing: .08em; }
@@ -219,11 +233,11 @@ html.codex-theme-studio .theme-home {
   overflow: hidden !important;
   border: 1px solid color-mix(in srgb, var(--theme-line) 54%, transparent) !important;
   border-radius: 28px !important;
-  background-color: color-mix(in srgb, var(--theme-secondary) 30%, white) !important;
+  background-color: color-mix(in srgb, var(--theme-secondary) 30%, var(--theme-background)) !important;
   background-image:
-    linear-gradient(90deg, color-mix(in srgb, var(--theme-surface) 98%, white) 0%, color-mix(in srgb, var(--theme-background) 94%, white) 32%, color-mix(in srgb, var(--theme-background) 56%, transparent) 46%, transparent 61%),
+    linear-gradient(90deg, color-mix(in srgb, var(--theme-surface) 98%, var(--theme-background)) 0%, color-mix(in srgb, var(--theme-background) 94%, var(--theme-surface)) 32%, color-mix(in srgb, var(--theme-background) 56%, transparent) 46%, transparent 61%),
     var(--theme-hero),
-    linear-gradient(180deg, color-mix(in srgb, var(--theme-secondary) 50%, white) 0 66%, color-mix(in srgb, var(--theme-accent) 28%, white) 66%) !important;
+    linear-gradient(180deg, color-mix(in srgb, var(--theme-secondary) 50%, var(--theme-surface)) 0 66%, color-mix(in srgb, var(--theme-accent) 28%, var(--theme-background)) 66%) !important;
   background-repeat: no-repeat !important;
   background-size: 100% 100%, var(--theme-hero-size), 100% 100% !important;
   background-position: center, var(--theme-hero-position), center !important;
@@ -343,10 +357,10 @@ html.codex-theme-studio .theme-home {
   padding: 15px 14px 13px;
   color: var(--theme-ink);
   text-align: left;
-  border: 1px solid rgba(211, 190, 127, .58);
+  border: 1px solid color-mix(in srgb, var(--theme-line) 72%, transparent);
   border-radius: 21px;
-  background: linear-gradient(145deg, rgba(255,255,255,.98), rgba(255,250,232,.96));
-  box-shadow: 0 8px 18px rgba(90, 85, 58, .10), inset 0 0 0 3px rgba(255,255,255,.52);
+  background: linear-gradient(145deg, color-mix(in srgb, var(--theme-surface) 92%, var(--theme-primary)), color-mix(in srgb, var(--theme-background) 92%, var(--theme-secondary)));
+  box-shadow: 0 8px 18px color-mix(in srgb, var(--theme-background) 38%, transparent), inset 0 0 0 2px color-mix(in srgb, var(--theme-line) 24%, transparent);
   transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
 }
 .theme-home-action:hover,
@@ -367,10 +381,10 @@ html.codex-theme-studio .theme-home {
   background: #ffeb8b;
   box-shadow: 0 0 0 7px rgba(255, 238, 158, .46);
 }
-.theme-home-action:nth-child(1) .theme-home-action-icon { color: var(--theme-ink); background: color-mix(in srgb, var(--theme-primary) 58%, white); }
-.theme-home-action:nth-child(2) .theme-home-action-icon { color: var(--theme-ink); background: color-mix(in srgb, var(--theme-secondary) 42%, white); }
-.theme-home-action:nth-child(3) .theme-home-action-icon { color: var(--theme-ink); background: color-mix(in srgb, var(--theme-accent) 42%, white); }
-.theme-home-action:nth-child(4) .theme-home-action-icon { color: var(--theme-ink); background: color-mix(in srgb, var(--theme-danger) 28%, white); }
+.theme-home-action:nth-child(1) .theme-home-action-icon { color: var(--theme-ink); background: color-mix(in srgb, var(--theme-primary) 58%, var(--theme-surface)); }
+.theme-home-action:nth-child(2) .theme-home-action-icon { color: var(--theme-ink); background: color-mix(in srgb, var(--theme-secondary) 42%, var(--theme-surface)); }
+.theme-home-action:nth-child(3) .theme-home-action-icon { color: var(--theme-ink); background: color-mix(in srgb, var(--theme-accent) 42%, var(--theme-surface)); }
+.theme-home-action:nth-child(4) .theme-home-action-icon { color: var(--theme-ink); background: color-mix(in srgb, var(--theme-danger) 28%, var(--theme-surface)); }
 .theme-home-action-icon svg { width: 19px; height: 19px; }
 .theme-home-action-copy { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
 .theme-home-action-copy strong {
@@ -392,16 +406,23 @@ html.codex-theme-studio .composer-surface-chrome {
   overflow: visible !important;
   border: 1px solid color-mix(in srgb, var(--theme-line) 62%, transparent) !important;
   border-radius: 22px !important;
-  background: linear-gradient(145deg, color-mix(in srgb, var(--theme-surface) 98%, white), color-mix(in srgb, var(--theme-primary) 10%, var(--theme-background))) !important;
-  box-shadow: 0 9px 23px color-mix(in srgb, var(--theme-ink) 12%, transparent), inset 0 0 0 3px rgba(255,255,255,.48) !important;
+  background: linear-gradient(145deg, color-mix(in srgb, var(--theme-surface) 98%, var(--theme-background)), color-mix(in srgb, var(--theme-primary) 10%, var(--theme-background))) !important;
+  box-shadow: 0 9px 23px color-mix(in srgb, var(--theme-ink) 12%, transparent), inset 0 0 0 3px color-mix(in srgb, var(--theme-line) 38%, transparent) !important;
   backdrop-filter: none !important;
+}
+html.codex-theme-studio .composer-surface-chrome button,
+html.codex-theme-studio .composer-surface-chrome button * { color: var(--theme-ink) !important; }
+html.codex-theme-studio .composer-surface-chrome [data-placeholder]::before,
+html.codex-theme-studio .composer-surface-chrome [data-placeholder]::after {
+  color: var(--theme-muted) !important;
+  opacity: 1 !important;
 }
 .theme-home div:has(> .horizontal-scroll-fade-mask .group\/project-selector) {
   position: relative;
   padding-top: 28px !important;
   border: 1px solid color-mix(in srgb, var(--theme-line) 54%, transparent);
   border-bottom: 0;
-  background: linear-gradient(180deg, color-mix(in srgb, var(--theme-surface) 94%, white), color-mix(in srgb, var(--theme-primary) 12%, var(--theme-background))) !important;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--theme-surface) 94%, var(--theme-background)), color-mix(in srgb, var(--theme-primary) 12%, var(--theme-background))) !important;
 }
 .theme-home div:has(> .horizontal-scroll-fade-mask .group\/project-selector)::before {
   content: var(--theme-project-label);
@@ -418,9 +439,10 @@ html.codex-theme-studio .composer-surface-chrome {
 .theme-home .group\/project-selector > button {
   color: var(--theme-ink) !important;
   border-color: color-mix(in srgb, var(--theme-primary) 42%, transparent) !important;
-  background: linear-gradient(135deg, rgba(255,255,255,.96), color-mix(in srgb, var(--theme-primary) 13%, white)) !important;
+  background: linear-gradient(135deg, var(--theme-surface), color-mix(in srgb, var(--theme-primary) 13%, var(--theme-background))) !important;
   box-shadow: 0 3px 10px rgba(69, 101, 128, .08) !important;
 }
+.theme-home .group\/project-selector > button * { color: var(--theme-ink) !important; }
 html.codex-theme-studio .ProseMirror { color: var(--theme-ink) !important; caret-color: var(--theme-danger) !important; }
 html.codex-theme-studio button[class~="bg-token-foreground"] {
   color: var(--theme-ink) !important;

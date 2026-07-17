@@ -60,67 +60,154 @@ namespace CodexThemeStudio.Runtime {
 }
 
 function Test-CodexDebugPort([int]$CandidatePort) {
-  try {
-    $targets = Invoke-RestMethod "http://127.0.0.1:$CandidatePort/json/list" -TimeoutSec 1
-    return [bool]($targets | Where-Object { $_.type -eq 'page' -and $_.url -like 'app://*' })
-  } catch { return $false }
+  foreach ($endpoint in @('127.0.0.1', '[::1]', 'localhost')) {
+    try {
+      $targets = Invoke-RestMethod "http://${endpoint}:$CandidatePort/json/list" -TimeoutSec 1
+      if ($targets | Where-Object { $_.type -eq 'page' -and $_.url -like 'app://*' }) { return $true }
+    } catch {}
+  }
+  return $false
 }
 
-$debugReady = Test-CodexDebugPort $Port
-$mainProcesses = @(Get-Process ChatGPT -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowHandle -ne 0 })
-if (-not $debugReady -and -not $ProfilePath -and $mainProcesses.Count -gt 0) {
-  if (-not $RestartExisting) {
-    throw "Codex is already running without remote debugging on port $Port. Close Codex or rerun with -RestartExisting."
+function Get-CodexMainProcesses {
+  return @(Get-Process ChatGPT -ErrorAction SilentlyContinue | Where-Object {
+    $_.MainWindowHandle -ne 0 -and $_.Path -like '*\WindowsApps\OpenAI.Codex_*'
+  })
+}
+
+function Test-SamePath([string]$Left, [string]$Right) {
+  if (-not $Left -or -not $Right) { return $false }
+  return [System.IO.Path]::GetFullPath($Left).TrimEnd('\') -eq [System.IO.Path]::GetFullPath($Right).TrimEnd('\')
+}
+
+function Test-ThemeInjectorState($SavedState) {
+  if (-not $SavedState -or -not $SavedState.injectorPid) { return $false }
+  $process = Get-Process -Id ([int]$SavedState.injectorPid) -ErrorAction SilentlyContinue
+  if (-not $process -or $process.ProcessName -ne 'node') { return $false }
+  $commandLine = (Get-CimInstance Win32_Process -Filter "ProcessId=$($process.Id)" -ErrorAction SilentlyContinue).CommandLine
+  if ($commandLine -notlike '*theme-injector.mjs*--watch*') { return $false }
+  if ($SavedState.injectorStartedAt) {
+    $savedStart = [datetime]::Parse($SavedState.injectorStartedAt).ToUniversalTime()
+    if ([math]::Abs(($process.StartTime.ToUniversalTime() - $savedStart).TotalSeconds) -gt 2) { return $false }
   }
-  foreach ($process in $mainProcesses) { [void]$process.CloseMainWindow() }
+  return $true
+}
+
+function Stop-ThemeInjectorFromState($SavedState) {
+  if (-not (Test-ThemeInjectorState $SavedState)) { return $false }
+  Stop-Process -Id ([int]$SavedState.injectorPid) -Force
+  return $true
+}
+
+function Stop-CodexMainProcesses($Processes) {
+  foreach ($process in $Processes) { [void]$process.CloseMainWindow() }
   Start-Sleep -Seconds 2
-  Get-Process ChatGPT -ErrorAction SilentlyContinue | Stop-Process -Force
+  foreach ($process in $Processes) {
+    if (Get-Process -Id $process.Id -ErrorAction SilentlyContinue) {
+      Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+    }
+  }
   Start-Sleep -Milliseconds 600
 }
 
-if (-not (Test-CodexDebugPort $Port)) {
-  $package = Get-AppxPackage OpenAI.Codex | Sort-Object Version -Descending | Select-Object -First 1
-  if (-not $package) { throw 'The OpenAI.Codex Store package is not installed.' }
-  $arguments = "--remote-debugging-port=$Port"
-  if ($ProfilePath) {
-    New-Item -ItemType Directory -Force -Path $ProfilePath | Out-Null
-    $arguments += " --user-data-dir=`"$($ProfilePath.Replace('"', '\"'))`""
-  }
-  [void][CodexThemeStudio.Runtime.PackagedAppLauncher]::Activate("$($package.PackageFamilyName)!App", $arguments)
+function Start-ThemeInjector([string]$TargetTheme, [int]$TargetPort) {
+  $injectorArgs = @("`"$Injector`"", '--watch', '--port', "$TargetPort", '--theme', "`"$TargetTheme`"")
+  return Start-Process -FilePath $node -ArgumentList $injectorArgs -WindowStyle Hidden -PassThru -RedirectStandardOutput $StdoutPath -RedirectStandardError $StderrPath
 }
 
-$deadline = (Get-Date).AddSeconds(30)
-while (-not (Test-CodexDebugPort $Port)) {
-  if ((Get-Date) -ge $deadline) { throw "Codex did not expose CDP on port $Port within 30 seconds." }
-  Start-Sleep -Milliseconds 400
-}
-
+$oldState = $null
 if (Test-Path -LiteralPath $StatePath) {
-  try {
-    $old = Get-Content -LiteralPath $StatePath -Raw -Encoding UTF8 | ConvertFrom-Json
-    if ($old.injectorPid) { Stop-Process -Id ([int]$old.injectorPid) -Force -ErrorAction SilentlyContinue }
-  } catch {}
+  try { $oldState = Get-Content -LiteralPath $StatePath -Raw -Encoding UTF8 | ConvertFrom-Json } catch {}
+}
+$debugReady = Test-CodexDebugPort $Port
+$profileOwnsPort = $ProfilePath -and $oldState -and ([int]$oldState.port -eq $Port) -and
+  (Test-SamePath $oldState.profilePath $ProfilePath) -and (Test-ThemeInjectorState $oldState)
+if ($debugReady -and $ProfilePath -and -not $profileOwnsPort) {
+  throw "Port $Port belongs to an unknown or non-isolated Codex session. Use a free port; the default window will not be themed."
+}
+$mainProcesses = @(Get-CodexMainProcesses)
+if (-not $debugReady -and -not $ProfilePath -and $mainProcesses.Count -gt 0) {
+  if (-not $RestartExisting) {
+    throw "Codex is running without remote debugging on port $Port. Save current work, close Codex, or rerun with -RestartExisting."
+  }
 }
 
-if ($ForegroundInjector) {
-  & $node $Injector --watch --port $Port --theme $ThemePath
-  exit $LASTEXITCODE
-}
+$daemon = $null
+$oldStopped = $false
+$restartPerformed = $false
+try {
+  if (-not $debugReady -and -not $ProfilePath -and $mainProcesses.Count -gt 0) {
+    Stop-CodexMainProcesses $mainProcesses
+    $restartPerformed = $true
+  }
 
-$injectorArgs = @("`"$Injector`"", '--watch', '--port', "$Port", '--theme', "`"$ThemePath`"")
-$daemon = Start-Process -FilePath $node -ArgumentList $injectorArgs -WindowStyle Hidden -PassThru -RedirectStandardOutput $StdoutPath -RedirectStandardError $StderrPath
-$state = @{
-  port = $Port; injectorPid = $daemon.Id; startedAt = (Get-Date).ToString('o')
-  skillRoot = $SkillRoot; profilePath = $ProfilePath; themePath = $ThemePath
-  themeId = $theme.id; themeVersion = $theme.version
-} | ConvertTo-Json
-[System.IO.File]::WriteAllText($StatePath, $state, $Utf8NoBom)
+  if (-not (Test-CodexDebugPort $Port)) {
+    $package = Get-AppxPackage OpenAI.Codex | Sort-Object Version -Descending | Select-Object -First 1
+    if (-not $package) { throw 'The OpenAI.Codex Store package is not installed.' }
+    $arguments = "--remote-debugging-port=$Port"
+    if ($ProfilePath) {
+      New-Item -ItemType Directory -Force -Path $ProfilePath | Out-Null
+      $arguments += " --user-data-dir=`"$($ProfilePath.Replace('"', '\"'))`""
+    }
+    [void][CodexThemeStudio.Runtime.PackagedAppLauncher]::Activate("$($package.PackageFamilyName)!App", $arguments)
+  }
 
-$verified = $false
-for ($attempt = 0; $attempt -lt 45; $attempt++) {
-  Start-Sleep -Milliseconds 700
-  & $node $Injector --verify --port $Port --theme $ThemePath *> $null
-  if ($LASTEXITCODE -eq 0) { $verified = $true; break }
+  $deadline = (Get-Date).AddSeconds(30)
+  while (-not (Test-CodexDebugPort $Port)) {
+    if ((Get-Date) -ge $deadline) { throw "Codex did not expose CDP on port $Port within 30 seconds." }
+    Start-Sleep -Milliseconds 400
+  }
+
+  if ($oldState -and $oldState.injectorPid) {
+    $oldStopped = Stop-ThemeInjectorFromState $oldState
+  }
+
+  if ($ForegroundInjector) {
+    & $node $Injector --watch --port $Port --theme $ThemePath
+    exit $LASTEXITCODE
+  }
+
+  $daemon = Start-ThemeInjector $ThemePath $Port
+  $verified = $false
+  for ($attempt = 0; $attempt -lt 45; $attempt++) {
+    Start-Sleep -Milliseconds 700
+    & $node $Injector --verify --view current --port $Port --theme $ThemePath *> $null
+    if ($LASTEXITCODE -eq 0) { $verified = $true; break }
+  }
+  if (-not $verified) { throw "Theme launched but verification failed. See $StderrPath" }
+
+  $state = @{
+    port = $Port; injectorPid = $daemon.Id; startedAt = (Get-Date).ToString('o')
+    injectorStartedAt = $daemon.StartTime.ToUniversalTime().ToString('o')
+    skillRoot = $SkillRoot; profilePath = $ProfilePath; themePath = $ThemePath
+    themeId = $theme.id; themeVersion = $theme.version
+  } | ConvertTo-Json
+  [System.IO.File]::WriteAllText($StatePath, $state, $Utf8NoBom)
+} catch {
+  $failure = $_
+  if ($daemon) { Stop-Process -Id $daemon.Id -Force -ErrorAction SilentlyContinue }
+  if ($restartPerformed) {
+    try {
+      $rollbackProcesses = @(Get-CodexMainProcesses)
+      if ($rollbackProcesses.Count -gt 0) { Stop-CodexMainProcesses $rollbackProcesses }
+      $rollbackPackage = Get-AppxPackage OpenAI.Codex | Sort-Object Version -Descending | Select-Object -First 1
+      if ($rollbackPackage) {
+        [void][CodexThemeStudio.Runtime.PackagedAppLauncher]::Activate("$($rollbackPackage.PackageFamilyName)!App", "--remote-debugging-port=$Port")
+        $rollbackDeadline = (Get-Date).AddSeconds(30)
+        while (-not (Test-CodexDebugPort $Port) -and (Get-Date) -lt $rollbackDeadline) { Start-Sleep -Milliseconds 400 }
+      }
+    } catch { Write-Warning "Codex could not be restarted after the failed theme launch: $($_.Exception.Message)" }
+  }
+  if ($oldStopped -and $oldState -and $oldState.themePath -and (Test-Path -LiteralPath $oldState.themePath) -and $(Test-CodexDebugPort ([int]$oldState.port))) {
+    $restored = Start-ThemeInjector $oldState.themePath ([int]$oldState.port)
+    $oldState.injectorPid = $restored.Id
+    $oldState.startedAt = (Get-Date).ToString('o')
+    $oldState.injectorStartedAt = $restored.StartTime.ToUniversalTime().ToString('o')
+    [System.IO.File]::WriteAllText($StatePath, ($oldState | ConvertTo-Json), $Utf8NoBom)
+  } elseif ($oldStopped) {
+    Remove-Item -LiteralPath $StatePath -Force -ErrorAction SilentlyContinue
+    try { & $node $Injector --remove --port $Port --timeout-ms 3000 *> $null } catch {}
+  }
+  throw $failure
 }
-if (-not $verified) { throw "Theme launched but verification failed. See $StderrPath" }
 Write-Host "Codex theme '$($theme.displayName)' is active on port $Port."

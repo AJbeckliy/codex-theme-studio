@@ -47,7 +47,14 @@
     if (!selection) return false;
     selection.removeAllRanges();
     selection.addRange(range);
-    return document.execCommand("insertText", false, prompt);
+    const beforeInput = new InputEvent("beforeinput", { bubbles: true, cancelable: true, inputType: "insertText", data: prompt });
+    if (editor.dispatchEvent(beforeInput)) {
+      const paragraph = document.createElement("p");
+      paragraph.textContent = prompt;
+      editor.replaceChildren(paragraph);
+      editor.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: prompt }));
+    }
+    return editor.innerText.trim() === prompt;
   };
 
   const findNativeIcon = (label) => [...document.querySelectorAll("aside.app-shell-left-panel button")]
