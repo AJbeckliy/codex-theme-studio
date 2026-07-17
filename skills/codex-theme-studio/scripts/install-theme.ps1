@@ -9,9 +9,7 @@ $ErrorActionPreference = 'Stop'
 $ThemePath = (Resolve-Path -LiteralPath $ThemePath).Path
 $SkillRoot = Split-Path -Parent $PSScriptRoot
 $StateRoot = Join-Path $env:LOCALAPPDATA 'CodexThemeStudio'
-$ConfigPath = Join-Path $env:USERPROFILE '.codex\config.toml'
-$BackupPath = Join-Path $StateRoot 'config.before-theme-studio.toml'
-$Utf8NoBom = New-Object System.Text.UTF8Encoding($false, $true)
+$ProfilePath = Join-Path $StateRoot 'profile'
 $node = (Get-Command node -ErrorAction Stop).Source
 $validator = Join-Path $PSScriptRoot 'validate-theme.mjs'
 New-Item -ItemType Directory -Force -Path $StateRoot | Out-Null
@@ -20,28 +18,6 @@ if ($LASTEXITCODE -ne 0) { throw "Theme validation failed: $ThemePath" }
 
 $manifestPath = Join-Path $ThemePath 'theme.json'
 $theme = Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
-if (-not (Test-Path -LiteralPath $ConfigPath)) { throw "Codex config not found: $ConfigPath" }
-if (-not (Test-Path -LiteralPath $BackupPath)) { Copy-Item -LiteralPath $ConfigPath -Destination $BackupPath }
-
-$content = [System.IO.File]::ReadAllText($ConfigPath, $Utf8NoBom)
-$desktopMatch = [regex]::Match($content, '(?ms)^\[desktop\]\s*\r?\n(?<body>.*?)(?=^\[|\z)')
-if (-not $desktopMatch.Success) {
-  $content = $content.TrimEnd() + "`r`n`r`n[desktop]`r`n"
-  $desktopMatch = [regex]::Match($content, '(?ms)^\[desktop\]\s*\r?\n(?<body>.*?)(?=^\[|\z)')
-}
-$body = $desktopMatch.Groups['body'].Value
-$settings = [ordered]@{
-  appearanceTheme = 'appearanceTheme = "light"'
-  appearanceLightCodeThemeId = 'appearanceLightCodeThemeId = "codex"'
-  appearanceLightChromeTheme = "appearanceLightChromeTheme = { accent = `"$($theme.palette.primary)`", contrast = 64, fonts = { code = `"Cascadia Code`", ui = `"Microsoft YaHei UI`" }, ink = `"$($theme.palette.ink)`", opaqueWindows = true, semanticColors = { diffAdded = `"$($theme.palette.accent)`", diffRemoved = `"$($theme.palette.danger)`", skill = `"$($theme.palette.secondary)`" }, surface = `"$($theme.palette.background)`" }"
-}
-foreach ($key in $settings.Keys) {
-  $pattern = "(?m)^$([regex]::Escape($key))\s*=.*$"
-  if ([regex]::IsMatch($body, $pattern)) { $body = [regex]::Replace($body, $pattern, $settings[$key]) }
-  else { $body = $body.TrimEnd() + "`r`n" + $settings[$key] + "`r`n" }
-}
-$content = $content.Substring(0, $desktopMatch.Groups['body'].Index) + $body + $content.Substring($desktopMatch.Groups['body'].Index + $desktopMatch.Groups['body'].Length)
-[System.IO.File]::WriteAllText($ConfigPath, $content, $Utf8NoBom)
 
 $iconPng = Join-Path $ThemePath $theme.assets.icon
 $iconIco = if ($theme.assets.shortcutIcon) { Join-Path $ThemePath $theme.assets.shortcutIcon } else { Join-Path $ThemePath 'theme.ico' }
@@ -60,7 +36,7 @@ if (-not $NoShortcuts) {
   foreach ($folder in @($desktop, $startMenu)) {
     $shortcut = $shell.CreateShortcut((Join-Path $folder "Codex - $safeName.lnk"))
     $shortcut.TargetPath = $powershell
-    $shortcut.Arguments = "-NoProfile -ExecutionPolicy Bypass -File `"$startScript`" -ThemePath `"$ThemePath`" -Port $Port"
+    $shortcut.Arguments = "-NoProfile -ExecutionPolicy Bypass -File `"$startScript`" -ThemePath `"$ThemePath`" -Port $Port -ProfilePath `"$ProfilePath`""
     $shortcut.WorkingDirectory = $SkillRoot
     $shortcut.IconLocation = "$iconIco,0"
     $shortcut.Description = "Launch Codex with the $($theme.displayName) theme"
@@ -75,4 +51,5 @@ if (-not $NoShortcuts) {
   $restore.Save()
 }
 
-Write-Host "Installed '$($theme.displayName)'. Use the new desktop shortcut to launch it."
+if ($NoShortcuts) { Write-Host "Prepared '$($theme.displayName)' without creating shortcuts." }
+else { Write-Host "Installed '$($theme.displayName)'. Use the new desktop shortcut to launch it." }

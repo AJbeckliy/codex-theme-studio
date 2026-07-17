@@ -7,7 +7,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, "..");
 
 function parseArgs(argv) {
-  const options = { port: 9335, mode: "watch", timeoutMs: 30000, screenshot: null, reload: false, theme: null };
+  const options = { port: 9335, mode: "watch", timeoutMs: 30000, screenshot: null, reload: false, theme: null, view: "current" };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === "--port") options.port = Number(argv[++i]);
@@ -18,10 +18,12 @@ function parseArgs(argv) {
     else if (arg === "--remove") options.mode = "remove";
     else if (arg === "--timeout-ms") options.timeoutMs = Number(argv[++i]);
     else if (arg === "--screenshot") options.screenshot = path.resolve(argv[++i]);
+    else if (arg === "--view") options.view = argv[++i]?.toLowerCase();
     else if (arg === "--reload") options.reload = true;
     else throw new Error(`Unknown argument: ${arg}`);
   }
   if (!Number.isInteger(options.port) || options.port < 1024 || options.port > 65535) throw new Error(`Invalid port: ${options.port}`);
+  if (!["current", "home", "chat"].includes(options.view)) throw new Error(`Invalid view: ${options.view}`);
   if (options.mode !== "remove" && !options.theme) throw new Error("--theme <folder> is required.");
   return options;
 }
@@ -89,16 +91,19 @@ class CdpSession {
 async function waitForTargets(port, timeoutMs) {
   const deadline = Date.now() + timeoutMs;
   let lastError;
+  const endpoints = ["127.0.0.1", "[::1]", "localhost"];
   while (Date.now() < deadline) {
-    try {
-      const response = await fetch(`http://127.0.0.1:${port}/json/list`);
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const targets = (await response.json()).filter((item) => item.type === "page" && item.url.startsWith("app://"));
-      if (targets.length) return targets;
-    } catch (error) { lastError = error; }
+    for (const endpoint of endpoints) {
+      try {
+        const response = await fetch(`http://${endpoint}:${port}/json/list`, { signal: AbortSignal.timeout(1000) });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const targets = (await response.json()).filter((item) => item.type === "page" && item.url.startsWith("app://"));
+        if (targets.length) return targets;
+      } catch (error) { lastError = error; }
+    }
     await new Promise((resolve) => setTimeout(resolve, 350));
   }
-  throw new Error(`No Codex renderer target on 127.0.0.1:${port}: ${lastError?.message ?? "timed out"}`);
+  throw new Error(`No Codex renderer target on port ${port}: ${lastError?.message ?? "timed out"}`);
 }
 
 async function loadPayload(themePath) {
@@ -138,7 +143,7 @@ async function removeFromSession(session) {
   })()`);
 }
 
-async function verifySession(session) {
+async function verifySession(session, expectedView = "current", expectedVersion = null, expectedActionCount = null, immersive = false) {
   return session.evaluate(`(() => {
     const box = (node) => {
       if (!node) return null;
@@ -146,12 +151,58 @@ async function verifySession(session) {
       return { x: Math.round(r.x), y: Math.round(r.y), width: Math.round(r.width), height: Math.round(r.height) };
     };
     const home = document.querySelector('.theme-home');
-    const suggestions = home?.querySelector('.group\\\\/home-suggestions, #theme-home-actions') ?? null;
+    const suggestions = home?.querySelector('#theme-home-actions') ?? null;
     const cards = suggestions ? [...suggestions.querySelectorAll('button')].map(box) : [];
     const chrome = document.getElementById('codex-theme-chrome');
+    const state = window.__CODEX_THEME_STUDIO_STATE__;
+    const luminance = (hex) => {
+      const channels = hex.slice(1).match(/../g).map((value) => parseInt(value, 16) / 255)
+        .map((value) => value <= .04045 ? value / 12.92 : ((value + .055) / 1.055) ** 2.4);
+      return .2126 * channels[0] + .7152 * channels[1] + .0722 * channels[2];
+    };
+    const contrast = (left, right) => {
+      const values = [luminance(left), luminance(right)].sort((a, b) => b - a);
+      return Math.round(((values[0] + .05) / (values[1] + .05)) * 100) / 100;
+    };
+    const rgbToHex = (value) => {
+      const channels = value?.match(/[\\d.]+/g)?.map(Number);
+      if (!channels || channels.length < 3) return null;
+      return '#' + channels.slice(0, 3).map((channel) => Math.round(channel).toString(16).padStart(2, '0')).join('');
+    };
+    const backgroundFor = (node, fallback) => {
+      for (let current = node; current; current = current.parentElement) {
+        const style = getComputedStyle(current);
+        if (style.backgroundImage !== 'none') return fallback;
+        const value = style.backgroundColor;
+        const channels = value?.match(/[\\d.]+/g)?.map(Number);
+        if (channels && (channels.length < 4 || channels[3] > 0)) return rgbToHex(value);
+      }
+      return fallback;
+    };
+    const palette = state?.theme?.palette;
+    const contrasts = palette ? {
+      inkSurface: contrast(palette.ink, palette.surface),
+      inkBackground: contrast(palette.ink, palette.background),
+      mutedBackground: contrast(palette.muted, palette.background),
+    } : null;
+    const runtimeBackground = getComputedStyle(document.documentElement).getPropertyValue('--theme-background').trim();
+    const computedContrasts = [
+      ['sidebar', document.querySelector('aside.app-shell-left-panel button'), null],
+      ['composer', document.querySelector('.ProseMirror[contenteditable="true"]'), null],
+      ['content', home?.querySelector('#theme-home-actions strong') || document.querySelector('main.main-surface p'), runtimeBackground],
+    ].flatMap(([name, node, backgroundHint]) => {
+      const foreground = node && rgbToHex(getComputedStyle(node).color);
+      const background = node && (backgroundHint || backgroundFor(node, palette?.background));
+      return foreground && background ? [{ name, ratio: contrast(foreground, background), foreground, background }] : [];
+    });
     const result = {
       installed: document.documentElement.classList.contains('codex-theme-studio'),
-      version: window.__CODEX_THEME_STUDIO_STATE__?.version ?? null,
+      version: state?.version ?? null,
+      expectedVersion: ${JSON.stringify(expectedVersion)},
+      expectedActionCount: ${JSON.stringify(expectedActionCount)},
+      immersive: ${JSON.stringify(immersive)},
+      requestedView: ${JSON.stringify(expectedView)},
+      detectedView: home ? 'home' : 'chat',
       stylePresent: Boolean(document.getElementById('codex-theme-studio-style')),
       chromePresent: Boolean(chrome),
       chromePointerEvents: getComputedStyle(chrome || document.body).pointerEvents,
@@ -162,19 +213,36 @@ async function verifySession(session) {
       viewport: { width: innerWidth, height: innerHeight },
       documentOverflow: { x: document.documentElement.scrollWidth > document.documentElement.clientWidth,
         y: document.documentElement.scrollHeight > document.documentElement.clientHeight },
+      contrasts,
+      computedContrasts,
     };
-    result.pass = result.installed && result.stylePresent && result.chromePresent && result.chromePointerEvents === 'none' &&
-      Boolean(result.composer) && Boolean(result.sidebar) && (!result.homePresent || (Boolean(result.hero) &&
-        (!result.suggestionsPresent || (result.cards.length >= 1 && result.cards.length <= 4))));
+    const inViewport = (item) => item && item.x >= 0 && item.y >= 0 &&
+      item.x + item.width <= result.viewport.width + 1 && item.y + item.height <= result.viewport.height + 1;
+    const commonPass = result.installed && result.stylePresent && result.chromePresent &&
+      result.chromePointerEvents === 'none' && Boolean(result.composer) && Boolean(result.sidebar) &&
+      !result.documentOverflow.x && (!result.expectedVersion || result.version === result.expectedVersion);
+    const contrastPass = Boolean(contrasts) && contrasts.inkSurface >= 4.5 &&
+      contrasts.inkBackground >= 4.5 && contrasts.mutedBackground >= 3;
+    const computedContrastPass = computedContrasts.length >= 2 && computedContrasts.every((item) => item.ratio >= 4.5);
+    const contains = (outer, inner) => outer && inner && inner.x >= outer.x - 1 && inner.y >= outer.y - 1 &&
+      inner.x + inner.width <= outer.x + outer.width + 1 && inner.y + inner.height <= outer.y + outer.height + 1;
+    const lastCardBottom = result.cards.length ? Math.max(...result.cards.map((card) => card.y + card.height)) : 0;
+    result.homePass = result.homePresent && Boolean(result.hero) && result.suggestionsPresent &&
+      result.cards.length === result.expectedActionCount && inViewport(result.hero) && result.cards.every(inViewport) &&
+      (!result.immersive || result.cards.every((card) => contains(result.hero, card))) && (result.composer?.y ?? -Infinity) + 1 >= lastCardBottom;
+    result.chatPass = !result.homePresent && inViewport(result.composer);
+    const viewPass = result.requestedView === 'current' || result.requestedView === result.detectedView;
+    result.pass = commonPass && contrastPass && computedContrastPass && viewPass &&
+      (result.detectedView === 'home' ? result.homePass : result.chatPass);
     return result;
   })()`);
 }
 
-async function waitForVerifiedSession(session, timeoutMs) {
+async function waitForVerifiedSession(session, timeoutMs, expectedView, expectedVersion, expectedActionCount, immersive) {
   const deadline = Date.now() + timeoutMs;
   let lastResult;
   while (Date.now() < deadline) {
-    lastResult = await verifySession(session);
+    lastResult = await verifySession(session, expectedView, expectedVersion, expectedActionCount, immersive);
     if (lastResult.pass) return lastResult;
     await new Promise((resolve) => setTimeout(resolve, 500));
   }
@@ -193,6 +261,10 @@ async function capture(session, outputPath) {
 async function runOneShot(options) {
   const targets = await waitForTargets(options.port, options.timeoutMs);
   const prepared = (options.mode === "once" || options.reload) ? await loadPayload(options.theme) : null;
+  const expectedTheme = options.mode === "verify" ? await loadTheme(options.theme) : prepared?.loaded;
+  const expectedVersion = expectedTheme ? `${expectedTheme.theme.id}@${expectedTheme.theme.version}` : null;
+  const expectedActionCount = expectedTheme?.theme.homeActions.length ?? null;
+  const immersive = (expectedTheme?.theme.layout.heroHeight ?? 252) >= 360;
   const results = [];
   for (const target of targets) {
     const session = await connectTarget(target);
@@ -206,13 +278,16 @@ async function runOneShot(options) {
       }
       const verified = options.mode === "remove"
         ? await session.evaluate("!document.documentElement.classList.contains('codex-theme-studio')")
-        : (options.reload || options.mode === "once") ? await waitForVerifiedSession(session, options.timeoutMs) : await verifySession(session);
+        : (options.reload || options.mode === "once")
+          ? await waitForVerifiedSession(session, options.timeoutMs, options.view, expectedVersion, expectedActionCount, immersive)
+          : await verifySession(session, options.view, expectedVersion, expectedActionCount, immersive);
       results.push({ targetId: target.id, title: target.title, url: target.url, result: verified });
       if (options.screenshot) await capture(session, options.screenshot);
     } finally { session.close(); }
   }
-  console.log(JSON.stringify({ mode: options.mode, port: options.port, theme: prepared?.loaded.theme.id ?? options.theme, targets: results }, null, 2));
+  console.log(JSON.stringify({ mode: options.mode, view: options.view, port: options.port, theme: expectedTheme?.theme.id ?? options.theme, targets: results }, null, 2));
   if (options.mode === "verify" && results.some((item) => !item.result.pass)) process.exitCode = 2;
+  if (options.mode === "remove" && results.some((item) => item.result !== true)) process.exitCode = 2;
 }
 
 async function runWatch(options) {

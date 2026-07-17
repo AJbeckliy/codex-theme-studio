@@ -17,7 +17,7 @@ Build themes as data and image packages while reusing the supplied Windows launc
 6. Run `node scripts/validate-theme.mjs --theme <theme-folder>`.
 7. Run `powershell -ExecutionPolicy Bypass -File scripts/install-theme.ps1 -ThemePath <theme-folder>`.
 8. Launch the created desktop shortcut or run `scripts/start-theme.ps1` directly.
-9. Verify the live app with `scripts/verify-theme.ps1`, including a screenshot when visual QA is needed.
+9. Verify the home and chat views separately with `scripts/verify-theme.ps1`, including screenshots when visual QA is needed.
 10. Test `scripts/restore-theme.ps1`, then reapply the theme if the user wants it left active.
 
 ## Image generation
@@ -44,19 +44,21 @@ Do not edit `assets/base-theme.css` for ordinary themes. Change it only when add
 
 ## Install and switch
 
-Install or update the Codex light chrome palette and create themed shortcuts:
+Validate assets and create themed shortcuts:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts/install-theme.ps1 -ThemePath "C:\path\to\my-theme"
 ```
 
-Start or switch themes on the existing debug-enabled Codex session:
+Start or switch themes in the isolated Theme Studio profile:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File scripts/start-theme.ps1 -ThemePath "C:\path\to\my-theme"
+powershell -ExecutionPolicy Bypass -File scripts/start-theme.ps1 `
+  -ThemePath "C:\path\to\my-theme" `
+  -ProfilePath "$env:LOCALAPPDATA\CodexThemeStudio\profile"
 ```
 
-If Codex is already open without the debug port, close it first. Use `-RestartExisting` only after the user has saved current work and authorized restarting the app.
+Generated shortcuts always use a separate Theme Studio profile and never edit `~/.codex/config.toml`, so normally launched Codex windows keep their default appearance. Use `-RestartExisting` only for legacy direct launches without `-ProfilePath`, after the user has saved current work and authorized restarting the app.
 
 ## Verify and recover
 
@@ -65,7 +67,12 @@ Run structural verification and capture the current window:
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts/verify-theme.ps1 `
   -ThemePath "C:\path\to\my-theme" `
+  -View Home `
   -Screenshot "C:\path\to\qa.png"
+
+powershell -ExecutionPolicy Bypass -File scripts/verify-theme.ps1 `
+  -ThemePath "C:\path\to\my-theme" `
+  -View Chat
 ```
 
 Always verify:
@@ -78,13 +85,13 @@ Always verify:
 - Restore removes the live injection.
 - Reapplying the same theme is idempotent.
 
-Remove the live theme without changing the saved Codex palette:
+Remove the live theme:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts/restore-theme.ps1
 ```
 
-Add `-RestoreBaseTheme` to restore the pre-install Codex palette backup. Add `-Uninstall -ThemePath <folder>` to remove shortcuts for one theme. Never delete the theme folder automatically.
+Add `-RestoreBaseTheme` only to clean up a global palette left by Theme Studio versions that predate profile isolation; reopen Codex afterward. Add `-Uninstall -ThemePath <folder>` to remove shortcuts for one theme. Never delete the theme folder automatically.
 
 ## Failure handling
 
@@ -92,4 +99,4 @@ Add `-RestoreBaseTheme` to restore the pre-install Codex palette backup. Add `-U
 - If the debug port is unavailable, do not launch the WindowsApps executable directly; use `start-theme.ps1`.
 - If verification fails, inspect `%LOCALAPPDATA%\CodexThemeStudio\injector-error.log`.
 - If a Codex update changes the DOM, keep the theme package unchanged and repair only the shared renderer/CSS engine.
-- Preserve the original config backup at `%LOCALAPPDATA%\CodexThemeStudio\config.before-theme-studio.toml`.
+- Never edit the global Codex config during normal install, start, switch, or restore flows.
